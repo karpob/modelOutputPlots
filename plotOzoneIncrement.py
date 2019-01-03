@@ -74,7 +74,8 @@ if __name__ == "__main__":
         dob = dobson(P[i,0:97], O3[i,0:97])
         print(dob)
     """
-    testFile = os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc.eta.20180709_23z.nc4')
+    #testFile = os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc.eta.20180709_23z.nc4')
+    testFile = os.path.join('/discover','nobackup','bkarpowi', 'ozoneCaseIncrements','x35_ozone1.xinc.eta.20180709_23z.nc4')
     d = Dataset(testFile)
     for dd in list(d.variables.keys()):
         print(dd)
