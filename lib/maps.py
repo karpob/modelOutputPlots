@@ -22,7 +22,10 @@ def getAutoBw(x):
 def getCountAuto(x):
     start, end = x.min(), x.max()
     bw = getAutoBw(x)
-    return int( np.ceil((end-start)/bw))
+    if(abs(bw)<1e-8):
+        return 1
+    else:
+        return int( np.ceil((end-start)/bw))
 
 def plotMap(lat, lon, data, title, graphicName, plotRange = None, units='', colorScheme = 'viridis', projectionSelected = ccrs.PlateCarree()):
     fig, ax1 = plt.subplots(nrows=1, figsize=(16,9), subplot_kw={'projection': ccrs.PlateCarree()}) 
@@ -37,7 +40,7 @@ def plotMap(lat, lon, data, title, graphicName, plotRange = None, units='', colo
     # come up with normalization for data.
     norm = matplotlib.colors.Normalize(vmin=plotRange[0], vmax=plotRange[1]) #Nomalize color range to match set data range
     # plot scatter plot with data according to colormap and normalization specified
-    ax1.scatter(lon, lat, c=data, cmap = colorScheme, norm=norm, s=2, marker="o", edgecolors='none', transform=ccrs.PlateCarree())
+    ax1.scatter(lon, lat, c=data, cmap = colorScheme, norm=norm, s=10, marker="o", edgecolors='none', transform=ccrs.PlateCarree())
 
     statString = "Mean={:10.4f} Standard Deviation={:10.4f} Min={:10.4f} Max={:10.4f}  ".format( data.mean(), data.std(ddof=1), data.min(), data.max() )
     plt.title(statString, fontsize=12)
@@ -74,7 +77,7 @@ def plotMapHist(lat, lon, data, title, graphicName, plotRange = None, units='', 
     # plot scatter plot with data according to colormap and normalization specified
     ax1.scatter(lon, lat, c=data, cmap = colorScheme, norm=norm, s=2, marker="o", edgecolors='none', transform=ccrs.PlateCarree())
     statString = "Mean={:10.4f} Standard Deviation={:10.4f} Min={:10.4f} Max={:10.4f}  ".format( data.mean(), data.std(ddof=1), data.min(), data.max() )
-    #ax1.set_title(statString, fontsize=12)
+    ax1.set_title(statString, fontsize=12)
     fig.suptitle(title, fontsize=18) 
     colorMapForColorbar = plt.cm.ScalarMappable(cmap=colorScheme, norm=norm)
     colorMapForColorbar._A = []
@@ -86,12 +89,15 @@ def plotMapHist(lat, lon, data, title, graphicName, plotRange = None, units='', 
     # Get bin count using 'auto' algorithm stolen from numpy private functions 
     binCount = getCountAuto(data)
     # if you get something weird, make it 10 at least.
-    if(binCount<10): binCount = 10 
+    if(binCount < 10 and data.min() < data.max() ): 
+        print("plotMapHist: bin count of {} too small, making it 10".format(binCount) )
+        binCount = 10 
     # Compute histogram (using fast of the interwebs if installed)
-    if(fastPresent):
+    if(fastPresent and binCount > 1 ):
         binEdges = np.linspace(data.min(),data.max(),binCount+1)
         hist = histogram1d(data,binCount,(data.min(),data.max()))
     else:
+        print("Using slower numpy histogram.")
         hist, binEdges = np.histogram(data, bins=binCount)
     # get midpoint value for histograms
     binMids = 0.5 * (binEdges[1:] + binEdges[:-1])
