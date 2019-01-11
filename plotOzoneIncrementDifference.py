@@ -1,8 +1,8 @@
 import matplotlib
 matplotlib.use('Agg')
-import os,h5py
+import os, h5py, argparse
 import numpy as np
-from lib.maps import plotMap, plotMapHist 
+from lib.maps import plotMap
 from netCDF4 import Dataset
 def readProfileH5():
     rttovPath = '/discover/nobackup/bkarpowi/rt/rttov12_gcc7.2_openmp/'
@@ -64,34 +64,67 @@ def dobson( p, o3 ):
         dobs = dobs + term 
 
     return dobs
-
-def getOzone(filename):
-    
+def getLonLatLev(filename):
     d = Dataset(filename)
-    #for dd in list(d.variables.keys()):
-    #    print(dd)
 
     lon = d.variables['lon']
     lat = d.variables['lat']
-    ppmvOzone = d.variables['ozone']
+    lev = d.variables['lev']
     lon2d, lat2d = np.meshgrid(lon,lat)   
+    return lon2d, lat2d, lev
 
-    return ppmvOzone, lat2d, lon2d, d 
+def getVar(filename, vname):
+    
+    d = Dataset(filename)
+    if (vname not in list(d.variables.keys())):
+        print("Can't find {} try one of these instead:".format(vname))
+        for dd in list(d.variables.keys()):
+            print(dd)
+    varVal = d.variables[vname]
+
+    return varVal 
+def getT(filename):
+    
+    d = Dataset(filename)
+    for dd in list(d.variables.keys()):
+        print(dd)
+
+    lon = d.variables['lon']
+    lat = d.variables['lat']
+    Tv = d.variables['tv']
+    w = np.asarray(d.variables['sphu'])*1000.0
+    T = Tv - (w/6.0)
+    return T
 
 if __name__ == "__main__":
-    #cntlOzone, tmp, tmp, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc.eta.20180709_23z.nc4'))
-    #expOzone, lat2d, lon2d, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'ozoneCaseIncrements','x35_ozone1.xinc.eta.20180709_23z.nc4')) 
-    #cntlOzone, tmp, tmp, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc.eta.20180808_21z.nc4'))
-    #expOzone, lat2d, lon2d, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'ozoneCaseIncrements','x35_ozone1.xinc.eta.20180808_21z.nc4')) 
-    #cntlOzone, tmp, tmp, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc09.eta.20180808_21z.nc4'))
-    #expOzone, lat2d, lon2d, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'ozoneCaseIncrements','x35_ozone1.xinc09.eta.20180808_21z.nc4')) 
-    cntlOzone, tmp, tmp, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc09.eta.20180715_03z.nc4'))
-    expOzone, lat2d, lon2d, d = getOzone(os.path.join('/discover','nobackup','bkarpowi', 'ozoneCaseIncrements','x35_ozone1.xinc09.eta.20180715_03z.nc4')) 
+    parser = argparse.ArgumentParser( description = 'plot differences between two increments.')
+    parser.add_argument('--control', help = 'control data file', required = True, dest = 'control')
+    parser.add_argument('--experiment',help = 'experiment data file', required = True, dest='experiment')
+    parser.add_argument('--output',help = 'output path', required = False, dest='output', default ='')
+    a = parser.parse_args()
 
 
-    #testFile = os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc.eta.20180709_23z.nc4')
-    #testFile = os.path.join('/discover','nobackup','bkarpowi', 'ozoneCaseIncrements','x35_ozone1.xinc.eta.20180709_23z.nc4') 
-    #(1, 72, 361, 576) 
+    # use given path and grab all nc diag files with instrument name in them.
+    
+    lon2d, lat2d, lev = getLonLatLev(a.control) 
+    cntlOzone = getVar(a.control,'ozone')
+    expOzone = getVar(a.experiment,'ozone') 
 
-    for l in range(0,1):#d.variables['lev'].shape[0]): 
-        plotMap(lat2d.flatten(), lon2d.flatten(), expOzone[0,l,:,:].flatten()-cntlOzone[0,l,:,:].flatten(), 'diff-PPMV{:07.3f}'.format(d.variables['lev'][l]), 'diff-PPMV{:07.3f}'.format(d.variables['lev'][l]), units ='ppmv')
+    cntlTv = getVar(a.control,'tv')
+    expTv = getVar(a.experiment,'tv') 
+
+    cntlTs = getVar(a.control,'ts')
+    expTs = getVar(a.experiment,'ts') 
+
+    cntlH = getVar(a.control,'sphu')
+    expH = getVar(a.experiment,'sphu') 
+
+    diffString = '{} - {}'.format(os.path.basename(a.experiment), os.path.basename(a.control))
+    oo = a.output
+    if( not os.path.exists(oo) ): os.makedirs(oo)
+
+    plotMap(lat2d.flatten(), lon2d.flatten(), expTs[0,:,:].flatten()-cntlTs[0,:,:].flatten(),'diff-Ts: '+diffString, os.path.join(oo,'diff-Ts'), units ='Kelvin')
+    for l in range(0, lev.shape[0]): 
+        plotMap(lat2d.flatten(), lon2d.flatten(), expOzone[0,l,:,:].flatten()-cntlOzone[0,l,:,:].flatten(), 'diff-PPMV Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-PPMV{:07.3f}'.format(lev[l])), units ='ppmv')
+        plotMap(lat2d.flatten(), lon2d.flatten(), expTv[0,l,:,:].flatten()-cntlTv[0,l,:,:].flatten(), 'diff-T Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-T-Level_{:07.3f}'.format(lev[l])), units ='Kelvin')
+        #plotMapHist(lat2d.flatten(), lon2d.flatten(), expH[0,l,:,:].flatten()-cntlH[0,l,:,:].flatten(), 'diff-SpHu Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-SPHU-Level_{:07.3f}'.format(lev[l])), units ='kg/kg')
