@@ -1,8 +1,8 @@
 import matplotlib
 matplotlib.use('Agg')
-import os,h5py
+import os, h5py, argparse
 import numpy as np
-from lib.maps import plotMap 
+from lib.maps import plotMap, plotMapHist 
 from netCDF4 import Dataset
 def readProfileH5():
     rttovPath = '/discover/nobackup/bkarpowi/rt/rttov12_gcc7.2_openmp/'
@@ -64,40 +64,58 @@ def dobson( p, o3 ):
         dobs = dobs + term 
 
     return dobs
+def getLonLatLev(filename):
+    d = Dataset(filename)
 
-if __name__ == "__main__":
-    """
-    # Test for dobson unit...seems a bit high, but ballpark - what we're looking for.
-    P, T, Q, CO2, O3, GasUnits = readProfileH5()
-    for i in range(0,6):
-        print(P[i,0:98].max())
-        dob = dobson(P[i,0:97], O3[i,0:97])
-        print(dob)
-    """
-    #testFile = os.path.join('/discover','nobackup','bkarpowi', 'controlIncrements','x35_control.xinc.eta.20180709_23z.nc4')
-    testFile = os.path.join('/discover','nobackup','bkarpowi', 'ozoneCaseIncrements','x35_ozone1.xinc.eta.20180709_23z.nc4')
-    d = Dataset(testFile)
+    lon = d.variables['lon']
+    lat = d.variables['lat']
+    lev = d.variables['lev']
+    lon2d, lat2d = np.meshgrid(lon,lat)   
+    return lon2d, lat2d, lev
+
+def getVar(filename, vname):
+    
+    d = Dataset(filename)
+    if (vname not in list(d.variables.keys())):
+        print("Can't find {} try one of these instead:".format(vname))
+        for dd in list(d.variables.keys()):
+            print(dd)
+    varVal = d.variables[vname]
+
+    return varVal 
+def getT(filename):
+    
+    d = Dataset(filename)
     for dd in list(d.variables.keys()):
         print(dd)
 
     lon = d.variables['lon']
     lat = d.variables['lat']
-    ppmvOzone = d.variables['ozone']
-    lon2d, lat2d = np.meshgrid(lon,lat)   
-    #(1, 72, 361, 576) 
-    """
-    dobsonPixels = np.zeros([ppmvOzone.shape[2], ppmvOzone.shape[3]])
-    for i in range(0,ppmvOzone.shape[2]):
-        print("{} of {}".format(i,ppmvOzone.shape[2]))
-        for j in range(0,ppmvOzone.shape[3]):
-            dobsonPixels[i,j] = dobson(d.variables['lev'],ppmvOzone[0,:,i,j])
-    print(ppmvOzone.shape) 
-    print(lon.shape)
-    print(lat.shape)
-    print(lon2d.shape)
-    print(lat2d.shape)
+    Tv = d.variables['tv']
+    w = np.asarray(d.variables['sphu'])*1000.0
+    T = Tv - (w/6.0)
+    return T
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser( description = 'plot the increment')
+    parser.add_argument('--file', help = 'increment file', required = True, dest = 'file')
+    parser.add_argument('--output',help = 'output path', required = False, dest='output', default ='')
+    a = parser.parse_args()
+
+
+    # use given path and grab all nc diag files with instrument name in them.
     
-    plotMap(lat2d.flatten(), lon2d.flatten(), dobsonPixels.flatten(), 'Dobson Unit', 'whir', units ='Dobson Units')
-    """
-    for l in range(0,d.variables['lev'].shape[0]): 
-        plotMap(lat2d.flatten(), lon2d.flatten(), ppmvOzone[0,l,:,:].flatten(), 'PPMV{:07.3f}'.format(d.variables['lev'][l]), 'PPMV{:07.3f}'.format(d.variables['lev'][l]), units ='ppmv')
+    lon2d, lat2d, lev = getLonLatLev(a.file) 
+    incrementOzone = getVar(a.file,'ozone')
+    incrementTv = getVar(a.file,'tv')
+    incrementTs = getVar(a.file,'ts')
+    incrementH = getVar(a.file,'sphu')
+
+    oo = a.output
+    if( not os.path.exists(oo) ): os.makedirs(oo)
+
+    plotMapHist(lat2d.flatten(), lon2d.flatten(), incrementTs[0,:,:].flatten(), 'Ts (Surface Temperature)', os.path.join(oo,'Ts'), units ='Kelvin')
+    for l in range(0, lev.shape[0]): 
+        plotMapHist(lat2d.flatten(), lon2d.flatten(), incrementOzone[0,l,:,:].flatten(), 'PPMV Level {:07.3f}'.format(lev[l]), os.path.join(oo,'PPMV{:07.3f}'.format(lev[l])), units ='ppmv')
+        plotMapHist(lat2d.flatten(), lon2d.flatten(), incrementTv[0,l,:,:].flatten(), 'T Level {:07.3f}'.format(lev[l]), os.path.join(oo,'T-Level_{:07.3f}'.format(lev[l])), units ='Kelvin')
+        #plotMapHist(lat2d.flatten(), lon2d.flatten(), incrementH[0,l,:,:].flatten(), 'SpHu Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-SPHU-Level_{:07.3f}'.format(lev[l])), units ='kg/kg')
