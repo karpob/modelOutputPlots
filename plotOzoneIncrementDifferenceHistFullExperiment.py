@@ -118,21 +118,54 @@ def processFilePair(controlFile, experimentFile, mapsOn, diffsOnly):
     dOzoneMax = np.max(np.max(dOzone,axis=1),axis=1)
     dOzoneMin = np.min(np.min(dOzone,axis=1),axis=1)
 
+    expTvMean = np.mean(np.mean(expTv[0,:,:],axis=1),axis=1)
+    expTvStd = np.std(np.std(expTv[0,:,:],axis=1),axis=1)
+    expTvMax = np.max(np.max(expTv[0,:,:],axis=1),axis=1)
+    expTvMin = np.min(np.min(expTv[0,:,:],axis=1),axis=1)
+
+    expOzoneMean = np.mean(np.mean(expOzone[0,:,:],axis=1),axis=1)
+    expOzoneStd = np.std(np.std(expOzone[0,:,:],axis=1),axis=1)
+    expOzoneMax = np.max(np.max(expOzone[0,:,:],axis=1),axis=1)
+    expOzoneMin = np.min(np.min(expOzone[0,:,:],axis=1),axis=1)
+
+    cntlTvMean = np.mean(np.mean(cntlTv[0,:,:],axis=1),axis=1)
+    cntlTvStd = np.std(np.std(cntlTv[0,:,:],axis=1),axis=1)
+    cntlTvMax = np.max(np.max(cntlTv[0,:,:],axis=1),axis=1)
+    cntlTvMin = np.min(np.min(cntlTv[0,:,:],axis=1),axis=1)
+
+    cntlOzoneMean = np.mean(np.mean(cntlOzone[0,:,:],axis=1),axis=1)
+    cntlOzoneStd = np.std(np.std(cntlOzone[0,:,:],axis=1),axis=1)
+    cntlOzoneMax = np.max(np.max(cntlOzone[0,:,:],axis=1),axis=1)
+    cntlOzoneMin = np.min(np.min(cntlOzone[0,:,:],axis=1),axis=1)
 
     stats2dTv = []
     stats2dOzone = []
+    stats2dTvExp = []
+    stats2dOzoneExp = []
+    stats2dTvCntl = []
+    stats2dOzoneCntl = []
     for l in range(0, lev.shape[0]):
         stats2dTv.append( [experimentTime,l, lev[l], dTvMean[l], dTvStd[l], dTvMax[l], dTvMin[l]] ) 
         stats2dOzone.append( [experimentTime,l, lev[l], dOzoneMean[l], dOzoneStd[l], dOzoneMax[l], dOzoneMin[l]] )
-        
-    return [[experimentTime, np.mean(dTs), np.std(dTs), dTs.min(), dTs.max()]], stats2dTv, stats2dOzone
+        stats2dTvExp.append([experimentTime,l, lev[l], expTvMean[l], expTvStd[l], expTvMax[l], expTvMin[l]] ) 
+        stats2dOzoneExp.append( [experimentTime,l, lev[l], expOzoneMean[l], expOzoneStd[l], expOzoneMax[l], expOzoneMin[l]] )
+        stats2dTvCntl.append([experimentTime,l, lev[l], cntlTvMean[l], cntlTvStd[l], cntlTvMax[l], cntlTvMin[l]] ) 
+        stats2dOzoneCntl.append( [experimentTime,l, lev[l], cntlOzoneMean[l], cntlOzoneStd[l], cntlOzoneMax[l], cntlOzoneMin[l]] )
+    statsDiff1d = [[experimentTime, np.mean(dTs), np.std(dTs), dTs.min(), dTs.max()]]  
+    statsExp1d = [[experimentTime, np.mean(np.asarray(expTs)), np.std(np.asarray(expTs)), np.min(np.asarray(expTs)), np.max(np.asarray(expTs))]]  
+    statsCntl1d = [[experimentTime, np.mean(np.asarray(cntlTs)), np.std(np.asarray(cntlTs)), np.min(np.asarray(cntlTs)), np.max(np.asarray(cntlTs))]]
+  
+    return statsDiff1d, statsExp1d, statsCntl1d, stats2dTv, stats2dOzone, stats2dTvExp, stats2dOzoneExp, stats2dTvCntl, stats2dOzoneCntl
+
 
 def plot1dTimeseries( stats1d, varName  ):
     statArray = np.asarray(stats1d)    
     timeIndex = statArray[:,0]
+    print(varName,statArray)
     df = pd.DataFrame(statArray, index = timeIndex, columns = ['date', 'mean', 'std','min', 'max'])
     df.plot(y=['mean','std','min','max'])
     plt.savefig(varName+'_timeseries.png')
+    print(varName,df)
 
 def plot2dTimeseries( stats, varName, units):
     statArray = np.asarray(stats)
@@ -171,10 +204,20 @@ if __name__ == "__main__":
     parser.add_argument('--experiment',help = 'test experiment name', required = True, dest='experiment')
     parser.add_argument('--archive',help = 'archive path', required = False, dest='archive', default ='/archive/u/bkarpowi')
     parser.add_argument('--no-maps', help="turn off maps/histograms.", dest='maps', action='store_false' )
+    parser.add_argument('--only-diffs', help="only differences", dest='diffs', action='store_false' )
     a = parser.parse_args()
     allTsStats = []
     allTvStats = []
     allOzoneStats = []
+
+    expTsStats = []
+    expTvStats = []
+    expOzoneStats = []
+
+    cntlTsStats = []
+    cntlTvStats = []
+    cntlOzoneStats = []
+
     controlFiles = getFiles(a.start, a.end, a.archive, a.control)
     experimentFiles = getFiles(a.start, a.end, a.archive, a.experiment)
     if(len(controlFiles)!=len(experimentFiles)):
@@ -183,11 +226,29 @@ if __name__ == "__main__":
 
     for i,fc in enumerate(controlFiles):
         print("Processing {}".format(os.path.basename(fc).split('.')[-2]))
-        surfaceT, Tv, Ozone = processFilePair(fc, experimentFiles[i], a.maps)
+        surfaceT, surfaceTexp, surfaceTcntl, Tv, Ozone, expTv, expOzone, cntlTv, cntlOzone = processFilePair(fc, experimentFiles[i], a.maps, a.diffs)
         allTsStats.extend(surfaceT)
         allTvStats.extend(Tv)
         allOzoneStats.extend(Ozone)
+
+        expTsStats.extend(surfaceTexp)
+        expTvStats.extend(expTv)
+        expOzoneStats.extend(expOzone)
+
+        cntlTsStats.extend(surfaceTcntl)
+        cntlTvStats.extend(cntlTv)
+        cntlOzoneStats.extend(cntlOzone)
+
     plot1dTimeseries( allTsStats, 'diff-Ts' )
     plot2dTimeseries( allTvStats, 'diff-Tv', 'Kelvin' )
     plot2dTimeseries( allOzoneStats, 'diff-Ozone', 'PPMV' )
+
+    plot1dTimeseries( expTsStats, 'exp-Ts' )
+    plot2dTimeseries( expTvStats, 'exp-Tv', 'Kelvin' )
+    plot2dTimeseries( expOzoneStats, 'exp-Ozone', 'PPMV' )
+
+    plot1dTimeseries( cntlTsStats, 'cntl-Ts' )
+    plot2dTimeseries( cntlTvStats, 'cntl-Tv', 'Kelvin' )
+    plot2dTimeseries( cntlOzoneStats, 'cntl-Ozone', 'PPMV' )
+ 
     print("Done!") 
