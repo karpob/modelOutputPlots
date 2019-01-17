@@ -1,6 +1,6 @@
 import matplotlib
 matplotlib.use('Agg')
-import os, h5py, argparse, glob, sys
+import os, h5py, argparse, glob, sys, socket
 from datetime import timedelta, date, datetime
 import numpy as np
 import pandas as pd
@@ -104,11 +104,19 @@ def processFilePair(controlFile, experimentFile, mapsOn, diffsOnly):
         oo = os.path.basename(experimentFile).split('.')[-2]
         if( not os.path.exists(oo) ): os.makedirs(oo)
         plotMapHist(lat2d.flatten(), lon2d.flatten(), dTs.flatten(),'diff-Ts: '+diffString, os.path.join(oo,'diff-Ts'), units ='Kelvin')
-
+        plotMapHist(lat2d.flatten(), lon2d.flatten(), np.asarray(expTs).flatten(),'Ts ', os.path.join(oo,'Ts_exp'), units ='Kelvin')
+        plotMapHist(lat2d.flatten(), lon2d.flatten(), np.asarray(cntlTs).flatten(),'Ts ', os.path.join(oo,'Ts_ctl'), units ='Kelvin')
         for l in range(0, lev.shape[0]): 
-            plotMapHist(lat2d.flatten(), lon2d.flatten(), dOzone[0,l,:,:].flatten(), 'diff-PPMV Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-PPMV{:07.3f}'.format(lev[l])), units ='ppmv')
-            plotMapHist(lat2d.flatten(), lon2d.flatten(), dTv[0,l,:,:].flatten(), 'diff-T Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-T-Level_{:07.3f}'.format(lev[l])), units ='Kelvin')
+            plotMapHist(lat2d.flatten(), lon2d.flatten(), dOzone[l,:,:].flatten(), 'diff-PPMV Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-PPMV{:07.3f}'.format(lev[l])), units ='ppmv')
+            plotMapHist(lat2d.flatten(), lon2d.flatten(), dTv[l,:,:].flatten(), 'diff-T Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-T-Level_{:07.3f}'.format(lev[l])), units ='Kelvin')
             #plotMapHist(lat2d.flatten(), lon2d.flatten(), dH[0,l,:,:].flatten(), 'diff-SpHu Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-SPHU-Level_{:07.3f}'.format(lev[l])), units ='kg/kg')
+            plotMapHist(lat2d.flatten(), lon2d.flatten(), np.asarray(expOzone[0,l,:,:]).flatten(), 'PPMV Level {:07.3f}'.format(lev[l]), os.path.join(oo,'exp-PPMV{:07.3f}'.format(lev[l])), units ='ppmv')
+            plotMapHist(lat2d.flatten(), lon2d.flatten(), np.asarray(expTv[0,l,:,:]).flatten(), 'T Level {:07.3f}'.format(lev[l]), os.path.join(oo,'exp-T-Level_{:07.3f}'.format(lev[l])), units ='Kelvin')
+            #plotMapHist(lat2d.flatten(), lon2d.flatten(), expH[0,l,:,:].flatten(), 'SpHu Level {:07.3f}'.format(lev[l]), os.path.join(oo,'exp-SPHU-Level_{:07.3f}'.format(lev[l])), units ='kg/kg')
+            plotMapHist(lat2d.flatten(), lon2d.flatten(), np.asarray(cntlOzone[0,l,:,:]).flatten(), 'PPMV Level {:07.3f}'.format(lev[l]), os.path.join(oo,'cntl-PPMV{:07.3f}'.format(lev[l])), units ='ppmv')
+            plotMapHist(lat2d.flatten(), lon2d.flatten(), np.asarray(cntlTv[0,l,:,:]).flatten(), 'T Level {:07.3f}'.format(lev[l]), os.path.join(oo,'cntl-T-Level_{:07.3f}'.format(lev[l])), units ='Kelvin')
+            #plotMapHist(lat2d.flatten(), lon2d.flatten(), np.asarray(cntlH[0,l,:,:]).flatten(), 'SpHu Level {:07.3f}'.format(lev[l]), os.path.join(oo,'cntl-SPHU-Level_{:07.3f}'.format(lev[l])), units ='kg/kg')
+ 
     dTvMean = np.mean(np.mean(dTv,axis=1),axis=1)
     dTvStd = np.std(np.std(dTv,axis=1),axis=1)
     dTvMax = np.max(np.max(dTv,axis=1),axis=1)
@@ -219,11 +227,21 @@ if __name__ == "__main__":
     cntlOzoneStats = []
 
     controlFiles = getFiles(a.start, a.end, a.archive, a.control)
+
     experimentFiles = getFiles(a.start, a.end, a.archive, a.experiment)
     if(len(controlFiles)!=len(experimentFiles)):
         print("Do not Pass go. We don't have the right number of files.")
         sys.exit()
-
+    if('discover' in socket.gethostname()):
+        for f in experimentFiles:
+            v="ssh dirac 'dmget "+f+"'"
+            print(v)
+            os.system(v)
+        for f in controlFiles:
+            v="ssh dirac 'dmget "+f+"'"
+            print(v)
+            os.system(v)
+ 
     for i,fc in enumerate(controlFiles):
         print("Processing {}".format(os.path.basename(fc).split('.')[-2]))
         surfaceT, surfaceTexp, surfaceTcntl, Tv, Ozone, expTv, expOzone, cntlTv, cntlOzone = processFilePair(fc, experimentFiles[i], a.maps, a.diffs)
