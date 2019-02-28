@@ -4,9 +4,11 @@ import os, h5py, argparse, glob, sys, socket
 from datetime import timedelta, date, datetime
 import numpy as np
 import pandas as pd
-from lib.maps import plotMapHist 
 from netCDF4 import Dataset
 from matplotlib import pyplot as plt
+# add path so script will work outside pwd.
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+from lib.maps import plotMapHist 
 
 def getLonLatLev(filename):
     d = Dataset(filename)
