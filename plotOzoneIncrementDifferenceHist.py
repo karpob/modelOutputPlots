@@ -1,6 +1,6 @@
 import matplotlib
 matplotlib.use('Agg')
-import os, h5py, argparse
+import os, h5py, argparse, sys
 import numpy as np
 # add path so script will work outside pwd.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -125,8 +125,8 @@ if __name__ == "__main__":
     oo = a.output
     if( not os.path.exists(oo) ): os.makedirs(oo)
 
-    plotMapHist(lat2d.flatten(), lon2d.flatten(), expTs[0,:,:].flatten()-cntlTs[0,:,:].flatten(),'diff-Ts: '+diffString, os.path.join(oo,'diff-Ts'), units ='Kelvin')
+    plotMapHist(lat2d.flatten(), lon2d.flatten(), expTs[0,:,:].flatten()-cntlTs[0,:,:].flatten(),'diff-Ts: '+diffString, os.path.join(oo,'diff-Ts'), units ='Kelvin',plotRange=[-4,4])
     for l in range(0, lev.shape[0]): 
         plotMapHist(lat2d.flatten(), lon2d.flatten(), expOzone[0,l,:,:].flatten()-cntlOzone[0,l,:,:].flatten(), 'diff-PPMV Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-PPMV{:07.3f}'.format(lev[l])), units ='ppmv')
         plotMapHist(lat2d.flatten(), lon2d.flatten(), expTv[0,l,:,:].flatten()-cntlTv[0,l,:,:].flatten(), 'diff-T Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-T-Level_{:07.3f}'.format(lev[l])), units ='Kelvin')
-        #plotMapHist(lat2d.flatten(), lon2d.flatten(), expH[0,l,:,:].flatten()-cntlH[0,l,:,:].flatten(), 'diff-SpHu Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-SPHU-Level_{:07.3f}'.format(lev[l])), units ='kg/kg')
+        plotMapHist(lat2d.flatten(), lon2d.flatten(), expH[0,l,:,:].flatten()-cntlH[0,l,:,:].flatten(), 'diff-SpHu Level {:07.3f}'.format(lev[l]), os.path.join(oo,'diff-SPHU-Level_{:07.3f}'.format(lev[l])), units ='kg/kg')
