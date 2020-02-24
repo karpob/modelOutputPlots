@@ -4,7 +4,7 @@ import os, h5py, argparse, sys
 import numpy as np
 # add path so script will work outside pwd.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from lib.maps import plotMap, plotMapHist 
+from lib.graphics.maps import plotMap, plotMapHist 
 from netCDF4 import Dataset
 def readProfileH5():
     rttovPath = '/discover/nobackup/bkarpowi/rt/rttov12_gcc7.2_openmp/'
